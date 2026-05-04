@@ -1,0 +1,26 @@
+model:
+  name: Qwen/Qwen2.5-Math-7B-Instruct
+  dtype: bfloat16
+
+lora:
+  r: 64
+  lora_alpha: 128
+  target_modules: [q_proj, k_proj, v_proj, o_proj,
+                   gate_proj, up_proj, down_proj]
+  lora_dropout: 0.05
+
+training:
+  global_batch_size: 512      # minimum for sound advantage normalization
+  micro_batch_size: 8         # per GPU
+  lr: 1e-5
+  total_steps: 1500
+  warmup_steps: 50
+  lambda_max: 1.0             # FM2: keep ≤ 1.0 initially
+  lambda_schedule: cosine     # anneals to 0 at step total_steps
+  clip_ratio: 0.2             # PPO-style ratio clip on L_RL
+  entropy_bonus: 0.01         # FM2 mitigation
+
+eval:
+  every_n_steps: 100
+  benchmarks: [aime2024, aime2025, math500, humaneval]
+  seeds: [42, 123, 999]

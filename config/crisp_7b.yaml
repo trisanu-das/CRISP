@@ -1,26 +1,212 @@
+# CRISP 7B configuration
+# Primary target: Qwen2.5-Math-7B-Instruct
+# This file is designed to drive the training loop, loss coupling, logging, and eval.
+
+experiment:
+  name: crisp_7b
+  seed: 42
+  output_dir: runs/crisp_7b
+  project: crisp
+  tags:
+    - crisp
+    - rlvr
+    - self-distillation
+    - qwen2.5-math
+
 model:
   name: Qwen/Qwen2.5-Math-7B-Instruct
+  trust_remote_code: true
   dtype: bfloat16
+  gradient_checkpointing: true
+  use_flash_attention_2: true
+  max_position_embeddings: 32768
 
 lora:
+  enabled: true
   r: 64
   lora_alpha: 128
-  target_modules: [q_proj, k_proj, v_proj, o_proj,
-                   gate_proj, up_proj, down_proj]
   lora_dropout: 0.05
+  bias: none
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  modules_to_save: []
+
+optimizer:
+  name: adamw_torch
+  lr: 1.0e-5
+  betas: [0.9, 0.95]
+  eps: 1.0e-8
+  weight_decay: 0.1
+  max_grad_norm: 1.0
+  mixed_precision: bf16
 
 training:
-  global_batch_size: 512      # minimum for sound advantage normalization
-  micro_batch_size: 8         # per GPU
-  lr: 1e-5
   total_steps: 1500
   warmup_steps: 50
-  lambda_max: 1.0             # FM2: keep ≤ 1.0 initially
-  lambda_schedule: cosine     # anneals to 0 at step total_steps
-  clip_ratio: 0.2             # PPO-style ratio clip on L_RL
-  entropy_bonus: 0.01         # FM2 mitigation
+  global_batch_size: 512
+  micro_batch_size: 8
+  gradient_accumulation_steps: 32
+  log_every: 1
+  save_every: 100
+  eval_every: 100
+  resume_from_checkpoint: null
+  dataloader_num_workers: 4
+  packing: false
 
-eval:
-  every_n_steps: 100
-  benchmarks: [aime2024, aime2025, math500, humaneval]
+rollout:
+  max_new_tokens: 1024
+  temperature: 0.7
+  top_p: 1.0
+  top_k: 0
+  do_sample: true
+  repetition_penalty: 1.0
+  num_return_sequences: 1
+  stop_on_eos: true
+  use_vllm: true
+  vllm_gpu_memory_utilization: 0.85
+
+crisp:
+  enabled: true
+  lambda_max: 1.0
+  lambda_schedule: cosine
+  lambda_floor: 0.0
+  correctness_gate: true
+  correctness_gate_mode: wrong_only
+  pc_grad: true
+  entropy_bonus: 0.01
+  clip_ratio: 0.2
+  advantage_norm: global
+  advantage_eps: 1.0e-8
+  reward_centering: true
+  reward_scaling: standardize
+  teacher_student_shared_weights: true
+  teacher_context_mode: privileged_prefix
+  student_context_mode: prompt_only
+
+loss_weights:
+  rl: 1.0
+  sd: 1.0
+  entropy: 0.01
+
+reward:
+  name: math_verify
+  type: binary
+  parse_format: latex
+  treat_parse_fail_as_wrong: true
+  normalize_answers: true
+  answer_extraction:
+    method: boxed
+    fallback_patterns:
+      - final answer
+      - answer is
+      - therefore
+
+data:
+  train_datasets:
+    - name: AI-MO/NuminaMath-CoT
+      split: train
+      weight: 1.0
+    - name: hendrycks/competition_math
+      split: train
+      weight: 0.25
+  eval_datasets:
+    aime2024:
+      source: custom
+      split: eval
+    aime2025:
+      source: custom
+      split: eval
+    math500:
+      source: hendrycks/competition_math
+      split: test
+    humaneval:
+      source: openai_humaneval
+      split: test
+  shuffle_seed: 42
+  max_prompt_length: 4096
+  max_answer_length: 2048
+  train_subset: null
+  eval_subset: null
+
+prompt_templates:
+  student: |
+    Solve the following problem step by step.
+    Put your final answer inside \boxed{}.
+
+    Problem: {problem}
+
+    Solution:
+
+  teacher: |
+    Solve the following problem step by step.
+    Put your final answer inside \boxed{}.
+
+    Problem: {problem}
+
+    The correct answer is: {answer}
+
+    Now write a complete step-by-step solution:
+
+logging:
+  backend: wandb
+  wandb_entity: null
+  wandb_project: crisp
+  log_model: false
+  log_artifacts: true
+  metrics:
+    - reward/mean
+    - reward/std
+    - loss/rl
+    - loss/sd
+    - advantage/variance
+    - gradient/cos_rl_sd
+    - policy/entropy
+    - efficiency/tokens_generated
+    - efficiency/tokens_cumulative
+    - efficiency/lambda
+
+checkpointing:
+  save_last: true
+  save_best: true
+  save_optimizer: true
+  save_lora_only: true
+  keep_last_n: 3
+
+evaluation:
   seeds: [42, 123, 999]
+  generation_max_new_tokens: 2048
+  deterministic: true
+  report:
+    - pass@1_mean
+    - pass@1_std
+    - tokens_mean
+    - tokens_per_correct
+    - bootstrap_ci_95
+
+baselines:
+  grpo_k1:
+    enabled: true
+    k: 1
+  grpo_k8:
+    enabled: true
+    k: 8
+  reinforce_pp:
+    enabled: true
+  opsd:
+    enabled: true
+
+hardware:
+  expected_vram_gb: 40
+  preferred_gpus: 2xA100-80GB
+  minimum_gpus: 2xA40-48GB
+
+notes:
+  - Keep batch size large enough for stable global advantage normalization.
+  - Do not instantiate separate teacher and student model copies; reuse shared weights.
+  - Use the same config structure for ablations by overriding only the fields being tested.

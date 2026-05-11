@@ -1,2 +1,1 @@
-# CRISP
-W.I.P
+# CRISP(Critic-free Reward-Integrated Self-distillation Policy optimization)

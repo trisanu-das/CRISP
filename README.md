@@ -17,13 +17,13 @@ and to study sample efficiency, convergence stability, and token efficiency for 
 
 ## What this repository contains
 
-- `training/` — CRISP training loop and step implementation
-- `baselines/` — GRPO, REINFORCE++, and OPSD baselines
-- `data/` — dataset building and reward computation
-- `model/` — model/tokenizer loading and LoRA setup
-- `eval/` — evaluation runner and metrics
-- `scripts/` — sweep and CLI launcher scripts
-- `config/` — main experiment configuration
+- `training/` - CRISP training loop and step implementation
+- `baselines/` - GRPO, REINFORCE++, and OPSD baselines
+- `data/` - dataset building and reward computation
+- `model/` - model/tokenizer loading and LoRA setup
+- `eval/` - evaluation runner and metrics
+- `scripts/` - sweep and CLI launcher scripts
+- `config/` - main experiment configuration
 
 ## Core idea
 

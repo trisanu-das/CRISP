@@ -51,6 +51,9 @@ class GRPOConfig:
     reward_centering: bool = True
     reward_scaling: str = "group_standardize"  # group_standardize | group_center_only | none
     max_prompt_length: Optional[int] = None
+    top_k: int = 0
+    repetition_penalty: float = 1.15   # was implicitly 1.0 (no-op); this was the actual bug
+    do_sample: bool = True
 
 
 # -----------------------------
@@ -86,6 +89,7 @@ def _generate(model, tokenizer, inputs: Mapping[str, Tensor], cfg: GRPOConfig) -
         temperature=cfg.temperature,
         top_p=cfg.top_p,
         top_k=cfg.top_k,
+        repetition_penalty=cfg.repetition_penalty,
         return_dict_in_generate=True,
         output_scores=False,
     )

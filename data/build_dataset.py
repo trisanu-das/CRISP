@@ -319,11 +319,27 @@ def build_prompt_answer_dataset(
 # -----------------------------
 
 
-def format_student_prompt(problem: str) -> str:
+def format_student_prompt(problem: str, tokenizer=None) -> str:
+    if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+        return [
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": f"Solve the following problem step by step.\nPut your final answer inside \\boxed{{}}.\n\nProblem: {problem['prompt']}"}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        ]
     return STUDENT_PROMPT_TEMPLATE.format(problem=_to_str(problem))
 
 
-def format_teacher_prompt(problem: str, answer: str) -> str:
+def format_teacher_prompt(problem: str, answer: str, tokenizer=None) -> str:
+    if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+        return [
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": f"Solve the following problem step by step.\nPut your final answer inside \\boxed{{}}.\n\nProblem: {problem['prompt']}"}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        ]
     return TEACHER_PROMPT_TEMPLATE.format(problem=_to_str(problem), answer=_to_str(answer))
 
 

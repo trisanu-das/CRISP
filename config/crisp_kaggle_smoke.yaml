@@ -19,13 +19,13 @@ experiment:
     - kaggle-pilot
 
 model:
-  name: Qwen/Qwen2.5-Math-1.5B-Instruct
+  name: Qwen/Qwen2.5-Math-7B-Instruct
   trust_remote_code: true
   dtype: auto              # auto-detects fp16 on T4/P100, bf16 on Ampere+
   gradient_checkpointing: true
   use_flash_attention_2: false   # T4/P100 can't use it anyway; loader now falls back to sdpa safely even if this were true
   max_position_embeddings: 4096
-  load_in_4bit: true        # QLoRA; needed to fit comfortably in 16GB per GPU
+  load_in_4bit: false        # QLoRA; needed to fit comfortably in 16GB per GPU
 
 lora:
   enabled: true
@@ -68,10 +68,10 @@ training:
 rollout:
   max_new_tokens: 256        # down from 1024
   temperature: 0.7
-  top_p: 1.0
+  top_p: 1
   top_k: 0
   do_sample: true
-  repetition_penalty: 1.0
+  repetition_penalty: 2
   num_return_sequences: 1
   stop_on_eos: true
   use_vllm: false            # not actually wired to anything in this codebase; left explicit for clarity

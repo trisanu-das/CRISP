@@ -51,6 +51,9 @@ class ReinforcePPConfig:
     reward_scaling: str = "standardize"  # standardize | center_only | none
     entropy_bonus: float = 0.0
     max_prompt_length: Optional[int] = None
+    top_k: int = 0
+    repetition_penalty: float = 1.15   # was implicitly 1.0 (no-op); this was the actual bug
+    do_sample: bool = True
 
 
 # -----------------------------
@@ -73,6 +76,7 @@ def _generate(model, tokenizer, inputs: Mapping[str, Tensor], cfg: ReinforcePPCo
         temperature=cfg.temperature,
         top_p=cfg.top_p,
         top_k=cfg.top_k,
+        repetition_penalty=cfg.repetition_penalty,
         return_dict_in_generate=True,
         output_scores=False,
     )
@@ -206,6 +210,9 @@ def reinforce_pp_step(
     inputs = _tokenize(tokenizer, prompts, device=device, max_length=cfg.max_prompt_length)
     generated_ids = _generate(model, tokenizer, inputs, cfg)
     generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+
+    print(f"Sample generated text: {generated_texts[0]}")
+    print(f"Ground truth: {batch[0]['answer']}")
 
     rewards = compute_rewards(generated_texts, batch, device=device)
     advantages = compute_advantages(rewards, cfg)

@@ -78,6 +78,9 @@ class CrispStepConfig:
     stop_on_eos: bool = True
     max_prompt_length: Optional[int] = None
     max_answer_length: Optional[int] = None
+    top_k: int = 0
+    repetition_penalty: float = 1.15   # was implicitly 1.0 (no-op); this was the actual bug
+    do_sample: bool = True
 
 
 # -----------------------------
@@ -246,11 +249,29 @@ def token_entropy(logits: Tensor) -> Tensor:
 # -----------------------------
 
 
-def build_student_prompts(batch: Sequence[Mapping[str, str]]) -> List[str]:
+def build_student_prompts(batch: Sequence[Mapping[str, str]], tokenizer=None) -> List[str]:
+    if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+        return [
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": f"Solve the following problem step by step.\nPut your final answer inside \\boxed{{}}.\n\nProblem: {item['prompt']}"}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            for item in batch
+        ]
     return [STUDENT_TEMPLATE.format(problem=item["prompt"]) for item in batch]
 
 
-def build_teacher_prompts(batch: Sequence[Mapping[str, str]]) -> List[str]:
+def build_teacher_prompts(batch: Sequence[Mapping[str, str]], tokenizer=None) -> List[str]:
+    if tokenizer is not None and getattr(tokenizer, "chat_template", None):
+        return [
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": f"Solve the following problem step by step.\nPut your final answer inside \\boxed{{}}.\n\nProblem: {item['prompt']}"}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            for item in batch
+        ]
     return [TEACHER_TEMPLATE.format(problem=item["prompt"], answer=item["answer"]) for item in batch]
 
 
@@ -273,6 +294,7 @@ def _generate_rollouts(model, tokenizer, student_inputs: Mapping[str, Tensor], c
         temperature=cfg.temperature,
         top_p=cfg.top_p,
         top_k=cfg.top_k,
+        repetition_penalty=cfg.repetition_penalty,
         return_dict_in_generate=True,
         output_scores=False,
     )
@@ -371,7 +393,7 @@ def crisp_step(
     # -------------------------
     # 1) Student rollout
     # -------------------------
-    student_texts = build_student_prompts(batch)
+    student_texts = build_student_prompts(batch, tokenizer)
     student_inputs = _tokenize_texts(tokenizer, student_texts, device=device, max_length=cfg.max_prompt_length)
     generated_ids = _generate_rollouts(model, tokenizer, student_inputs, cfg)
     generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
@@ -434,7 +456,7 @@ def crisp_step(
     # only differ in input context, so both are run as one batched forward
     # pass rather than two separate model() calls: this halves the activation
     # memory for this section, which matters a lot on 16GB-class GPUs.
-    teacher_texts = build_teacher_prompts(batch)
+    teacher_texts = build_teacher_prompts(batch, tokenizer)
     n_items = len(batch)
     sd_combined_texts = list(student_texts) + list(teacher_texts)
     sd_max_length = None

@@ -1,0 +1,113 @@
+checkpointing:
+  save_adapter_only: true
+cibo_v2:
+  anchor_alpha: 0.01
+  anchor_ema_decay: 0.995
+  anchor_storage: same
+  beta: 0.1
+  beta_denominator_epsilon: 1.0e-06
+  beta_ema_decay: 0.95
+  beta_max: 10.0
+  beta_min: 0.001
+  beta_mode: fixed
+  beta_reference_warmup_steps: 20
+  beta_step_size: 0.05
+  credit_lambda: 0.25
+  ib_reduction: sequence_sum
+  reward_threshold: 0.5
+  soft_gate_slope: 12.0
+  use_soft_gate: true
+data:
+  eval_datasets:
+  - gsm8k
+  - math500
+  - aime2024
+  - aime2025
+  - hmmt2025
+  teacher_hint_template: 'Internal calibration note (do not reveal or reference this
+    in your response): the correct final answer to this problem is {answer}. Reason
+    step by step as usual and box your final answer.'
+  train_dataset: numina_math_cot
+  train_split: train
+  train_subset_size: null
+evaluation:
+  bootstrap_seed: 0
+  eval_batch_size: 8
+  eval_subset_size: null
+  max_new_tokens: 1024
+  n_bootstrap: 2000
+logging:
+  backend: none
+  run_name: qwen25_14b
+  wandb_project: crisp-paper
+lora:
+  alpha: 128
+  dropout: 0.0
+  enabled: true
+  r: 64
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+model:
+  attn_implementation: auto
+  initial_adapter: null
+  load_in_4bit: false
+  local_files_only: false
+  name: Qwen/Qwen2.5-14B-Instruct
+  system_prompt: Please reason step by step, and put your final answer within \boxed{}.
+  torch_dtype: bfloat16
+  trust_remote_code: false
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  lr: 1.0e-06
+  max_grad_norm: 1.0
+  warmup_steps: 20
+  weight_decay: 0.0
+reward:
+  code_exec_timeout: 10.0
+  task: math
+  use_math_verify: true
+rollout:
+  do_sample: true
+  k: 8
+  max_new_tokens: 512
+  max_prompt_length: 512
+  temperature: 1.0
+  top_p: 1.0
+seed: 0
+training:
+  adv_eps: 1.0e-08
+  correctness_gate: true
+  eval_every: 0
+  grad_accum_steps: 4
+  lambda_max: 1.0
+  lambda_schedule: cosine
+  log_every: 5
+  micro_batch_size: 4
+  output_dir: runs/scaling/qwen25_14b
+  pcgrad_eps: 1.0e-12
+  resume_from: null
+  save_every: 250
+  total_steps: 1000
+  use_pcgrad: true
+vacs:
+  adaptive_mix:
+    ema_decay: 0.95
+    enabled: true
+    multiplier_max: 5.0
+    multiplier_min: 0.1
+  reward_threshold: 0.5
+  sd_weight: 1.0
+  soft_gate_slope: 12.0
+  token_credit_mix: 0.25
+  token_weight_epsilon: 0.2
+  use_asymmetric_projection: true
+  use_soft_gate: true

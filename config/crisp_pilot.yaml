@@ -1,0 +1,65 @@
+seed: 0
+model:
+  name: Qwen/Qwen2.5-0.5B-Instruct
+  torch_dtype: bfloat16
+  attn_implementation: auto
+  load_in_4bit: false
+  system_prompt: Please reason step by step, and put your final answer within \boxed{}.
+  local_files_only: false
+  initial_adapter: null
+lora:
+  enabled: true
+  r: 16
+  alpha: 32
+  dropout: 0.0
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+optimizer:
+  lr: 1.0e-05
+  warmup_steps: 5
+  max_grad_norm: 1.0
+training:
+  total_steps: 50
+  micro_batch_size: 2
+  grad_accum_steps: 1
+  clip_epsilon: 0.2
+  lambda_max: 1.0
+  save_every: 25
+  eval_every: 25
+  log_every: 1
+  output_dir: runs/crisp_pilot
+  resume_from: null
+  lambda_schedule: cosine
+  use_pcgrad: true
+  correctness_gate: true
+rollout:
+  k: 1
+  max_prompt_length: 256
+  max_new_tokens: 256
+  temperature: 1.0
+  top_p: 1.0
+  do_sample: true
+reward:
+  task: math
+  use_math_verify: true
+data:
+  train_dataset: gsm8k
+  train_split: train
+  eval_datasets:
+  - gsm8k
+logging:
+  backend: none
+  run_name: crisp_pilot
+evaluation:
+  eval_batch_size: 4
+  eval_subset_size: 20
+  max_new_tokens: 256
+  bootstrap_seed: 0
+vacs:
+  use_soft_gate: true
+  use_asymmetric_projection: true
+cibo_v2:
+  use_soft_gate: true

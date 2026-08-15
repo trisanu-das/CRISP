@@ -1,0 +1,381 @@
+controls:
+  description: 'Baseline methods the new VACS and CIBO results are benchmarked against.
+    The lambda sweep on crisp is a one-factor ablation over the original CRISP method;
+    everything else is a single-config baseline.
+
+    '
+  full_variant: crisp
+  variants:
+    crisp:
+      method: crisp
+      base_config: crisp_7b
+      slug: crisp
+      description: Original CRISP -- symmetric PC-Grad on RL + correctness-gated forward
+        KL.
+      metric_keys:
+      - loss_rl
+      - loss_sd
+      - lambda
+      - grad_conflicted
+      - reward_mean
+      overrides: {}
+    reinforce_pp:
+      method: reinforce_pp
+      base_config: crisp_7b
+      slug: reinforce_pp
+      description: REINFORCE++ baseline (no self-distillation).
+      metric_keys:
+      - loss_rl
+      - reward_mean
+      overrides: {}
+    opsd:
+      method: opsd
+      base_config: crisp_7b
+      slug: opsd
+      description: OPSD baseline (self-distillation only, no RL branch).
+      metric_keys:
+      - loss_sd
+      - reward_mean
+      overrides: {}
+    grpo_k1:
+      method: grpo
+      base_config: crisp_7b
+      slug: grpo_k1
+      description: Single-rollout global-PG budget control (not genuine group-relative
+        GRPO).
+      metric_keys:
+      - loss_rl
+      - reward_mean
+      - grpo_is_group_relative
+      overrides:
+        rollout:
+          k: 1
+    grpo_k8:
+      method: grpo
+      base_config: crisp_7b
+      slug: grpo_k8
+      description: GRPO with k=8 rollouts per prompt (the typical setting).
+      metric_keys:
+      - loss_rl
+      - reward_mean
+      - grpo_is_group_relative
+      overrides:
+        rollout:
+          k: 8
+    crisp_lambda_sweep:
+      method: crisp
+      base_config: crisp_7b
+      slug: crisp_lambda_sweep
+      description: 'CRISP lambda sweep -- one ablation in the controls suite showing
+        the original method''s sensitivity to the SD coefficient. Not a VACS / CIBO
+        comparison; included so existing CRISP behavior is itself characterised.
+
+        '
+      metric_keys:
+      - lambda
+      - loss_rl
+      - loss_sd
+      - grad_conflicted
+      overrides:
+        training:
+          lambda_max: 0.5
+vacs-core:
+  description: 'VACS full method vs one-factor ablations. Each ablation toggles exactly
+    one VACS component: token credit, soft gate, adaptive mixing, asymmetric surgery,
+    or self-distillation. Comparing each ablation to the full variant isolates that
+    component''s contribution to the final loss.
+
+    '
+  full_variant: full
+  variants:
+    full:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-full
+      description: 'Full VACS: token credit (rho=0.25), soft gate (slope 12, threshold
+        0.5), adaptive mixing (EMA decay 0.95, multiplier clamp [0.1, 5.0]), asymmetric
+        PC-Grad, self-distillation weight 1.0.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - vacs/lambda_eff
+      - vacs/cos_rl_sd
+      - vacs/conflicted
+      - vacs/rl_grad_norm
+      - vacs/sd_grad_norm
+      - reward_mean
+      - response_len_mean
+      overrides: {}
+    no_token_credit:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-no-token-credit
+      description: 'VACS with token credit disabled (rho=0). RL reduces to the CRISP
+        sequence-mean advantage. Isolates the contribution of token-level credit to
+        the RL signal.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - vacs/token_weight_mean
+      - reward_mean
+      - response_len_mean
+      overrides:
+        vacs:
+          token_credit_mix: 0.0
+    no_soft_gate:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-no-soft-gate
+      description: 'VACS with the soft reward gate replaced by a unit gate (gate=1
+        for every rollout). Tests whether the smooth sigmoid gate is necessary or
+        whether a hard "always on" gate suffices.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - vacs/gate_mean
+      - reward_mean
+      - response_len_mean
+      overrides:
+        vacs:
+          use_soft_gate: false
+    fixed_mixing:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-fixed-mixing
+      description: 'VACS with adaptive mixing disabled (lambda_eff = lambda_max constant).
+        Tests whether the EMA-based variance ratio and cosine scaling of the SD coefficient
+        help.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - vacs/lambda_eff
+      - vacs/variance_multiplier
+      - reward_mean
+      - response_len_mean
+      overrides:
+        vacs:
+          adaptive_mix:
+            enabled: false
+    no_asym_surgery:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-no-asym-surgery
+      description: 'VACS without asymmetric PC-Grad: combined = g_rl + lam * g_sd
+        (no projection). Tests whether protecting the RL direction is necessary.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - vacs/conflicted
+      - vacs/rl_grad_norm
+      - vacs/sd_grad_norm
+      - reward_mean
+      - response_len_mean
+      overrides:
+        vacs:
+          use_asymmetric_projection: false
+    no_sd:
+      method: vacs
+      base_config: vacs_7b
+      slug: vacs-no-sd
+      description: 'VACS with self-distillation weight zero (sd_weight=0). Reduces
+        to plain RL with token credit. Tests whether the SD term is the primary source
+        of the documented gains.
+
+        '
+      metric_keys:
+      - vacs/loss_rl
+      - vacs/loss_sd
+      - reward_mean
+      - response_len_mean
+      overrides:
+        vacs:
+          sd_weight: 0.0
+cibo-fixed:
+  description: 'CIBO v2 (fixed beta mode) full method vs one-factor ablations. The
+    full variant uses config/cibo_v2_7b.yaml (beta=0.10, credit_lambda=0.25, anchor_alpha=0.01,
+    ib_reduction=sequence_sum).
+
+    '
+  full_variant: full
+  variants:
+    full:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-full
+      description: 'Full CIBO v2 (fixed beta): single composite loss loss_rl + beta
+        * loss_ib + alpha * loss_anchor, no PC-Grad, tanh credit on the token advantage,
+        EMA-anchored regularizer.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_ib
+      - cibo/loss_anchor
+      - cibo/beta
+      - cibo/beta_mode
+      - cibo/credit_multiplier_mean
+      - cibo/ib_gate_mean
+      - cibo/kl_per_token_mean
+      - cibo/anchor_alpha
+      - cibo/ema_decay
+      - reward_mean
+      - response_len_mean
+      overrides: {}
+    no_token_credit:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-no-token-credit
+      description: 'CIBO v2 with credit_lambda=0. RL advantage is the global normalized
+        advantage (no per-token scaling). Tests whether the tanh credit is necessary.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_ib
+      - cibo/credit_multiplier_mean
+      - reward_mean
+      overrides:
+        cibo_v2:
+          credit_lambda: 0.0
+    no_ib:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-no-ib
+      description: 'CIBO v2 with beta=0. The information-bottleneck term contributes
+        nothing. Tests whether the IB term is the primary source of the documented
+        gains.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_anchor
+      - cibo/beta
+      - reward_mean
+      overrides:
+        cibo_v2:
+          beta: 0.0
+    no_anchor:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-no-anchor
+      description: 'CIBO v2 with anchor_alpha=0. The EMA-anchored regularizer contributes
+        nothing. Tests whether the anchor is necessary.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_ib
+      - cibo/loss_anchor
+      - cibo/anchor_alpha
+      - reward_mean
+      overrides:
+        cibo_v2:
+          anchor_alpha: 0.0
+    token_mean_ib:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-token-mean-ib
+      description: 'CIBO v2 with ib_reduction=token_mean instead of the default sequence_sum.
+        Tests the documented "no silent substitution" rule: token_mean and sequence_sum
+        MUST be reported as distinct reductions.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_ib
+      - cibo/kl_per_token_mean
+      - reward_mean
+      overrides:
+        cibo_v2:
+          ib_reduction: token_mean
+    no_soft_gate:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-fixed-no-soft-gate
+      description: CIBO v2 with a unit IB gate for every rollout.
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_ib
+      - cibo/ib_gate_mean
+      - reward_mean
+      overrides:
+        cibo_v2:
+          use_soft_gate: false
+cibo-adaptive:
+  description: 'CIBO v2 in adaptive-beta mode vs a matched fixed-beta control + one-factor
+    ablations. The plan calls out that a comparison between fixed and adaptive is
+    only valid if both are in the SAME suite (so seed, config layout, and metric collection
+    are identical).
+
+    '
+  full_variant: full
+  variants:
+    full:
+      method: cibo-v2
+      base_config: cibo_v2_adaptive_beta_7b
+      slug: cibo-adaptive-full
+      description: 'Full CIBO v2 (adaptive_sign beta): the controller''s sign-based
+        update grows/shrinks beta each step within [beta_min, beta_max]. Reference
+        KL EMA is built during a 20-step warm-up, then frozen.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_ib
+      - cibo/loss_anchor
+      - cibo/beta
+      - cibo/beta_mode
+      - cibo/beta_reference_kl
+      - cibo/baselined_kl
+      - reward_mean
+      - response_len_mean
+      overrides: {}
+    matched_fixed:
+      method: cibo-v2
+      base_config: cibo_v2_7b
+      slug: cibo-adaptive-vs-fixed
+      description: 'Matched fixed-beta control for the adaptive variant. Same seed,
+        same model, same data; only beta_mode differs. The comparison tests whether
+        the controller''s updates help.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/loss_rl
+      - cibo/loss_ib
+      - cibo/beta
+      - cibo/beta_mode
+      - reward_mean
+      overrides: {}
+    controller_disabled:
+      method: cibo-v2
+      base_config: cibo_v2_adaptive_beta_7b
+      slug: cibo-adaptive-disabled-after-warmup
+      description: 'CIBO v2 adaptive mode with the controller''s step() called 0 times
+        across the run (forced via beta_step_size=0 after warmup completes). Isolates
+        the contribution of post-warmup adaptive updates.
+
+        '
+      metric_keys:
+      - cibo/loss_total
+      - cibo/beta
+      - cibo/beta_reference_kl
+      - reward_mean
+      overrides:
+        cibo_v2:
+          beta_step_size: 0.0

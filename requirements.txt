@@ -1,0 +1,32 @@
+# Core (required)
+#
+# Upper bounds below are deliberate, not decorative: this code was written
+# and reviewed against the v4.x/v0.x-era APIs of these libraries (no GPU was
+# available to actually execute it against a live install -- see the
+# top-level README's "How this was validated"). transformers crossed into a
+# v5 major release which requires huggingface_hub>=1.0; that's a bigger
+# jump than "should be fine" covers, and huggingface_hub v1.x also means a
+# more aggressive Xet-by-default download path, which is the single most
+# common cause of the "model.safetensors takes forever / never finishes"
+# symptom (see README: "Model download is slow or hangs"). If you *want* v5
+# and are prepared to shake out any incompatibilities, this bound is the
+# first thing to relax.
+torch>=2.3
+transformers>=4.46,<5.0
+datasets>=2.19,<4.0
+peft>=0.11,<1.0
+accelerate>=0.33,<2.0
+pyyaml>=6.0
+numpy>=1.26
+sympy>=1.12          # fallback math-answer comparator if math-verify isn't installed
+
+# Recommended (used automatically if present, with graceful fallbacks if not)
+math-verify>=0.5      # preferred math answer verifier; falls back to a sympy-based comparator otherwise
+bitsandbytes>=0.43    # only needed if model.load_in_4bit: true in your config
+#flash-attn>=2.5       # only used if importable AND a compatible CUDA GPU is present; otherwise sdpa
+
+# Optional
+wandb>=0.17           # only used if logging.backend: wandb in your config
+
+# Dev
+pytest>=8.0

@@ -1,0 +1,109 @@
+seed: 0
+model:
+  name: Qwen/Qwen2.5-Math-7B-Instruct
+  torch_dtype: bfloat16
+  attn_implementation: auto
+  load_in_4bit: false
+  system_prompt: Please reason step by step, and put your final answer within \boxed{}.
+  local_files_only: false
+  initial_adapter: null
+lora:
+  enabled: true
+  r: 64
+  alpha: 128
+  dropout: 0.0
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+optimizer:
+  lr: 1.0e-06
+  warmup_steps: 10
+  max_grad_norm: 1.0
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  weight_decay: 0.0
+training:
+  total_steps: 1000
+  micro_batch_size: 4
+  grad_accum_steps: 1
+  clip_epsilon: 0.2
+  lambda_max: 1.0
+  save_every: 200
+  eval_every: 100
+  log_every: 1
+  adv_eps: 1.0e-08
+  pcgrad_eps: 1.0e-12
+  output_dir: runs/cibo_v2_adaptive_beta
+  resume_from: null
+  lambda_schedule: cosine
+  use_pcgrad: true
+  correctness_gate: true
+rollout:
+  k: 1
+  max_prompt_length: 512
+  max_new_tokens: 512
+  temperature: 1.0
+  top_p: 1.0
+  do_sample: true
+reward:
+  task: math
+  use_math_verify: true
+data:
+  train_dataset: gsm8k
+  train_split: train
+  eval_datasets:
+  - math500
+  teacher_hint_template: 'Internal calibration note (do not reveal or reference this
+    in your response): the correct final answer to this problem is {answer}. Reason
+    step by step as usual and box your final answer.
+
+    '
+logging:
+  backend: none
+  run_name: cibo-v2-adaptive
+  wandb_project: vacs-cibo
+checkpointing:
+  save_adapter_only: true
+evaluation:
+  eval_batch_size: 8
+  eval_subset_size: null
+  n_bootstrap: 1000
+  max_new_tokens: 512
+  bootstrap_seed: 0
+vacs:
+  token_credit_mix: 0.25
+  token_weight_epsilon: 0.2
+  sd_weight: 1.0
+  soft_gate_slope: 12.0
+  reward_threshold: 0.5
+  adaptive_mix:
+    enabled: true
+    ema_decay: 0.95
+    multiplier_min: 0.1
+    multiplier_max: 5.0
+  use_soft_gate: true
+  use_asymmetric_projection: true
+cibo_v2:
+  credit_lambda: 0.25
+  beta: 0.1
+  beta_mode: adaptive_sign
+  beta_min: 0.001
+  beta_max: 10.0
+  beta_step_size: 0.05
+  beta_ema_decay: 0.95
+  beta_reference_warmup_steps: 20
+  beta_denominator_epsilon: 1.0e-06
+  ib_reduction: sequence_sum
+  soft_gate_slope: 12.0
+  reward_threshold: 0.5
+  anchor_alpha: 0.01
+  anchor_ema_decay: 0.995
+  anchor_storage: same
+  use_soft_gate: true

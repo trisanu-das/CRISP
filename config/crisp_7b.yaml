@@ -1,0 +1,70 @@
+seed: 0
+model:
+  name: Qwen/Qwen2.5-Math-7B-Instruct
+  torch_dtype: bfloat16
+  attn_implementation: auto
+  load_in_4bit: false
+  system_prompt: Please reason step by step, and put your final answer within \boxed{}.
+  local_files_only: false
+  initial_adapter: null
+lora:
+  enabled: true
+  r: 64
+  alpha: 128
+  dropout: 0.0
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+optimizer:
+  lr: 1.0e-06
+  warmup_steps: 20
+  max_grad_norm: 1.0
+training:
+  total_steps: 1500
+  micro_batch_size: 16
+  grad_accum_steps: 4
+  clip_epsilon: 0.2
+  lambda_max: 1.0
+  save_every: 100
+  eval_every: 100
+  log_every: 5
+  output_dir: runs/crisp_7b
+  resume_from: null
+  lambda_schedule: cosine
+  use_pcgrad: true
+  correctness_gate: true
+rollout:
+  k: 1
+  max_prompt_length: 512
+  max_new_tokens: 768
+  temperature: 1.0
+  top_p: 1.0
+  do_sample: true
+reward:
+  task: math
+  use_math_verify: true
+data:
+  train_dataset: numina_math_cot
+  train_split: train
+  eval_datasets:
+  - aime2024
+  - aime2025
+  - math500
+logging:
+  backend: none
+  run_name: crisp_7b
+evaluation:
+  eval_batch_size: 8
+  eval_subset_size: null
+  max_new_tokens: 1024
+  bootstrap_seed: 0
+vacs:
+  use_soft_gate: true
+  use_asymmetric_projection: true
+cibo_v2:
+  use_soft_gate: true
